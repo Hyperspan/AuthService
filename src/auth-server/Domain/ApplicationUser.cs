@@ -1,19 +1,55 @@
 namespace AuthServer.Domain
 {
-    public class ApplicationUser<TId> : AuthEntity where TId : IEquatable<TId>
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <typeparam name="TId"></typeparam>
+    public class ApplicationUser<TId> : AuthEntity<TId> where TId : IEquatable<TId>
     {
 
-        public string FullName { get; set; }
-        public string UserName { get; set; }
-        public string Email { get; set; }
-        public string PhoneNumber { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        public string FullName { get; set; } = string.Empty;
+        /// <summary>
+        /// 
+        /// </summary>
+        public string UserName { get; set; } = string.Empty;
+        /// <summary>
+        /// 
+        /// </summary>
+        public string Email { get; set; } = string.Empty;
+        /// <summary>
+        /// 
+        /// </summary>
+        public string PhoneNumber { get; set; } = string.Empty;
+        /// <summary>
+        /// 
+        /// </summary>
         public bool IsTwoFactorEnabled { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
         public bool IsLockoutEnabled { get; set; }
-        // In seconds
+        /// <summary>
+        /// 
+        /// </summary>
         public int LockoutDuration { get; set; }
-        public string PasswordHash { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        public string PasswordHash { get; set; } = string.Empty;
+        /// <summary>
+        /// 
+        /// </summary>
         public bool IsPhoneNumberConfirmed { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
         public bool IsEmailConfirmed { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
         public int? AccessFailedCount { get; set; }
     }
 }
