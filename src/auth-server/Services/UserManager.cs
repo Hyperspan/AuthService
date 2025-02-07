@@ -4,6 +4,8 @@ using AuthServer.Shared.Results;
 using System.Net;
 using DnsClient;
 using System.Net.Mail;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace AuthServer.Services
 {
@@ -12,7 +14,7 @@ namespace AuthServer.Services
     /// </summary>
     /// <typeparam name="TId"></typeparam>
     public partial class UserManager<TId>(
-        Repository<int, ApplicationUser<int>, AuthContext<int>> repository,
+        IRepository<TId, ApplicationUser<TId>, AuthContext<TId>> repository,
         CacheService cacheService
         )
         : IUserManager<TId> where TId : IEquatable<TId>
@@ -30,31 +32,34 @@ namespace AuthServer.Services
             // Validate the email address
             if (!await IsEmailValidAsync(user.Email))
             {
-                throw new ApiErrorException(ErrorCodes.InvalidEmailAddress);
+                return OperationResult.Failed(ErrorCodes.InvalidEmailAddress, "Given email address is invalid.");
             }
 
             // Check if the user already exists in cache
             var cacheUser = cacheService.GetAsync<ApplicationUser<TId>>(CacheKeyPrefix + user.Email);
+
             if (cacheUser is not null && ServiceExtension.Configuration.User.RequireUniqueEmail)
-                return new OperationResult
-                {
-                    ErrorCode = ErrorCodes.EmailTaken,
-                    ErrorDescription = "User with specified email already exists",
-                    Succeeded = false
-                };
-            if (cacheUser is null && ServiceExtension.Configuration.User.RequireUniqueEmail && repository.Entities.Any(x => x.Email == user.Email))
+                return OperationResult.Failed(ErrorCodes.EmailTaken, "User with specified email already exists");
+            if (cacheUser is null && ServiceExtension.Configuration.User.RequireUniqueEmail &&
+                repository.Entities.Any(x => x.Email == user.Email))
             {
-                return new OperationResult
-                {
-                    ErrorCode = ErrorCodes.EmailTaken,
-                    ErrorDescription = "User with specified email already exists",
-                    Succeeded = false
-                };
+                return OperationResult.Failed(ErrorCodes.EmailTaken, "User with specified email already exists");
             }
 
             // Create a new user
+            //var password = GetPasswordHash(user.PasswordHash);
+            if (repository.Entities.Any(x => x.UserName == user.UserName))
+            {
+                return OperationResult.Failed(ErrorCodes.UsernameTaken, "The requested Username is already in use");
+            }
 
+            // Should inherit the TFA setting from the configuration
+            user.IsTwoFactorEnabled = ServiceExtension.Configuration.SignIn.RequireTwoFactorEnabled;
 
+            // Insert record
+            await repository.AddAsync(user);
+
+            return OperationResult.Success();
         }
 
         /// <summary>
@@ -66,7 +71,8 @@ namespace AuthServer.Services
         /// <exception cref="NotImplementedException"></exception>
         public Task<OperationResult> RegisterUserAsync(ApplicationUser<TId> user, string password)
         {
-            throw new NotImplementedException();
+            user.PasswordHash = GetPasswordHash(password);
+            return RegisterUserAsync(user);
         }
 
         /// <summary>
@@ -157,6 +163,13 @@ namespace AuthServer.Services
             return dnsQueryResponse is { Answers.Count: > 0 };
         }
 
+        private static string GetPasswordHash(string password)
+        {
+            var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+
+            return Convert.ToBase64String(hash);
+        }
 
     }
 

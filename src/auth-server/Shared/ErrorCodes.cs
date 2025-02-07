@@ -64,6 +64,9 @@
         /// 
         /// </summary>
         public const string InvalidEmailAddress = "01AU009";
+
+        public const string UsernameTaken = "01AU010";
+
         #endregion
 
         #region 02 Database

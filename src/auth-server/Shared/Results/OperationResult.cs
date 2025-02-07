@@ -17,5 +17,34 @@
         /// 
         /// </summary>
         public string ErrorDescription { get; set; } = string.Empty;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public static OperationResult Success()
+        {
+            return new OperationResult
+            {
+                Succeeded = true
+            };
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="errorCode"></param>
+        /// <param name="errorDescription"></param>
+        /// <returns></returns>
+        public static OperationResult Failed(string errorCode, string errorDescription)
+        {
+            return new OperationResult
+            {
+                ErrorCode = errorCode,
+                ErrorDescription = errorDescription,
+                Succeeded = false
+            };
+        }
+
     }
 }
