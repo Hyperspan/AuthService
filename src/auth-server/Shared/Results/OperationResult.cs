@@ -47,4 +47,15 @@
         }
 
     }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public class OperationResult<TData> : OperationResult
+    {
+        /// <summary>
+        /// 
+        /// </summary>
+        public TData? Data { get; set; }
+    }
 }

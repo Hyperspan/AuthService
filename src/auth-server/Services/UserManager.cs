@@ -4,8 +4,6 @@ using AuthServer.Shared.Results;
 using System.Net;
 using DnsClient;
 using System.Net.Mail;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace AuthServer.Services
 {
@@ -71,7 +69,7 @@ namespace AuthServer.Services
         /// <exception cref="NotImplementedException"></exception>
         public Task<OperationResult> RegisterUserAsync(ApplicationUser<TId> user, string password)
         {
-            user.PasswordHash = GetPasswordHash(password);
+            user.PasswordHash = password.GetHash();
             return RegisterUserAsync(user);
         }
 
@@ -84,7 +82,74 @@ namespace AuthServer.Services
         /// <exception cref="NotImplementedException"></exception>
         public Task<LoginResult> LoginAsync(string username, string password)
         {
-            throw new NotImplementedException();
+            var user = repository.Entities.FirstOrDefault(x => x.UserName == username);
+            if (user is null)
+            {
+                return Task.FromResult(new LoginResult
+                {
+                    Succeeded = false,
+                    ErrorCode = ErrorCodes.UserNotFound,
+                    ErrorDescription = "User with specified username was not found"
+                });
+            }
+
+            if (ServiceExtension.Configuration.SignIn.RequireConfirmedEmail && !user.IsEmailConfirmed)
+            {
+                return Task.FromResult(new LoginResult
+                {
+                    Succeeded = false,
+                    EmailNotConfirmed = true,
+                    ErrorCode = ErrorCodes.EmailNotVerified,
+                    ErrorDescription = "Email is not confirmed yet"
+                });
+            }
+
+            if (ServiceExtension.Configuration.SignIn.RequireConfirmedAccount && !user.IsActive)
+            {
+                return Task.FromResult(new LoginResult
+                {
+                    Succeeded = false,
+                    IsNotActive = true,
+                    ErrorCode = ErrorCodes.UserIsNotActive,
+                    ErrorDescription = "User is not active"
+                });
+            }
+
+            if (ServiceExtension.Configuration.SignIn.RequireConfirmedPhoneNumber && !user.IsPhoneNumberConfirmed)
+            {
+                return Task.FromResult(new LoginResult
+                {
+                    Succeeded = false,
+                    PhoneNotConfirmed = true,
+                    ErrorCode = ErrorCodes.MobileNotVerified,
+                    ErrorDescription = "User's Phone number is not confirmed yet"
+                });
+            }
+
+
+            if (!string.Equals(user.PasswordHash, password.GetHash()))
+            {
+                return Task.FromResult(new LoginResult
+                {
+                    Succeeded = false,
+                    IncorrectCredentials = true,
+                    ErrorCode = ErrorCodes.IncorrectCredentials,
+                    ErrorDescription = "Credentials supplied are incorrect"
+                });
+            }
+
+            if (ServiceExtension.Configuration.SignIn.RequireTwoFactorEnabled && user.IsTwoFactorEnabled)
+            {
+                return Task.FromResult(new LoginResult
+                {
+                    Succeeded = false,
+                    IsTwoFactorRequired = true,
+                    ErrorCode = ErrorCodes.TwoFactorRequired,
+                    ErrorDescription = "Two factor authentication is required for this user"
+                });
+            }
+
+            return Task.FromResult(LoginResult.Success());
         }
 
         /// <summary>
@@ -99,6 +164,18 @@ namespace AuthServer.Services
         {
             throw new NotImplementedException();
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public Task<OperationResult<string>> GetTwoFactorCodeAsync(ApplicationUser<TId> user)
+        {
+            throw new NotImplementedException();
+        }
+
 
         /// <summary>
         /// 
@@ -162,16 +239,5 @@ namespace AuthServer.Services
 
             return dnsQueryResponse is { Answers.Count: > 0 };
         }
-
-        private static string GetPasswordHash(string password)
-        {
-            var sha256 = SHA256.Create();
-            var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-
-            return Convert.ToBase64String(hash);
-        }
-
     }
-
-
 }

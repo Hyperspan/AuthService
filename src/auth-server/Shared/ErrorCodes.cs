@@ -65,7 +65,20 @@
         /// </summary>
         public const string InvalidEmailAddress = "01AU009";
 
+        /// <summary>
+        /// 
+        /// </summary>
         public const string UsernameTaken = "01AU010";
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public const string TwoFactorRequired = "01AU011";
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public const string UserIsNotActive = "01AU012";
 
         #endregion
 

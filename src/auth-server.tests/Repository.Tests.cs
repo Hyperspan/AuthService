@@ -149,7 +149,7 @@ namespace auth_server.tests
 
             var result = await _repository.GetById(entity.Id);
 
-            Assert.Equal(null, result);
+            Assert.Null(result);
         }
 
         [Fact]

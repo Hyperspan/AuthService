@@ -1,6 +1,6 @@
-﻿using AuthServer.Domain;
+﻿using AuthServer;
+using AuthServer.Domain;
 using AuthServer.Services;
-using AuthServer;
 using Microsoft.EntityFrameworkCore;
 
 namespace auth_server.tests
@@ -24,5 +24,7 @@ namespace auth_server.tests
         {
             return new Repository<TId, ApplicationUser<TId>, AuthContext<TId>>(authContext);
         }
+
+
     }
 }

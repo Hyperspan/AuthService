@@ -47,5 +47,9 @@ namespace AuthServer
         /// 
         /// </summary>
         public virtual DbSet<ApplicationUser<TId>>? ApplicationUsers { get; set; }
+        /// <summary>
+        /// 
+        /// </summary>
+        public virtual DbSet<ApplicationUserTokens<TId>>? ApplicationUserTokens { get; set; }
     }
 }
