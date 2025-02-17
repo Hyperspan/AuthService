@@ -4,7 +4,6 @@ using AuthServer.Shared.Results;
 using System.Net;
 using DnsClient;
 using System.Net.Mail;
-
 namespace AuthServer.Services
 {
     /// <summary>
@@ -176,7 +175,7 @@ namespace AuthServer.Services
             }
 
             var userToken = applicationUserTokenRepository.Entities
-                .FirstOrDefault(x => x.UserId.Equals(user.Id));
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "TwoFactorCode");
 
             if (userToken is null || string.IsNullOrEmpty(userToken.Value))
             {
@@ -208,7 +207,7 @@ namespace AuthServer.Services
         {
             var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
             var userToken = applicationUserTokenRepository.Entities
-                .FirstOrDefault(x => x.UserId.Equals(user.Id));
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "TwoFactorCode");
 
             if (userToken is null || string.IsNullOrEmpty(userToken.Value))
             {
@@ -230,29 +229,108 @@ namespace AuthServer.Services
 
         /// <inheritdoc />
 
-        public Task<OperationResult> GetConfirmEmailCode(ApplicationUser<TId> user)
+        public async Task<OperationResult<string>> GetConfirmEmailCode(ApplicationUser<TId> user)
         {
-            throw new NotImplementedException();
+            var otpSecret = TwoStepsAuthenticator.Authenticator.GenerateKey();
+            var userToken = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "EmailVerify");
+
+            if (userToken is not null)
+            {
+                await applicationUserTokenRepository.DeleteAsync(userToken);
+            }
+
+            await applicationUserTokenRepository.AddAsync(new ApplicationUserTokens<TId>
+            {
+                UserId = user.Id,
+                Value = otpSecret,
+                Name = "EmailVerify",
+                LoginProvider = "[AuthService]",
+            });
+
+            var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
+
+            return OperationResult<string>.Success(authenticator.GetCode(otpSecret, DateTime.Now));
         }
 
         /// <inheritdoc />
-        public Task<OperationResult> GetConfirmPhoneCode(ApplicationUser<TId> user)
+        public async Task<OperationResult<string>> GetConfirmPhoneCode(ApplicationUser<TId> user)
         {
-            throw new NotImplementedException();
+
+            var otpSecret = TwoStepsAuthenticator.Authenticator.GenerateKey();
+            var userToken = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "PhoneVerify");
+
+            if (userToken is not null)
+            {
+                await applicationUserTokenRepository.DeleteAsync(userToken);
+            }
+
+            await applicationUserTokenRepository.AddAsync(new ApplicationUserTokens<TId>
+            {
+                UserId = user.Id,
+                Value = otpSecret,
+                Name = "PhoneVerify",
+                LoginProvider = "[AuthService]",
+            });
+
+            var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
+
+            return OperationResult<string>.Success(authenticator.GetCode(otpSecret, DateTime.Now));
         }
 
         /// <inheritdoc />
 
-        public Task<OperationResult> ConfirmPhoneCode(ApplicationUser<TId> user, string code)
+        public async Task<OperationResult> ConfirmPhoneCode(ApplicationUser<TId> user, string code)
         {
-            throw new NotImplementedException();
+            var otpSecret = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "PhoneVerify");
+
+            if (otpSecret is null || string.IsNullOrEmpty(otpSecret.Value))
+            {
+                return OperationResult.Failed(ErrorCodes.MobileNotVerified,
+                    "Failed to verify the phone number");
+            }
+
+            var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
+            var checkCode = authenticator.CheckCode(otpSecret.Value, code, user);
+
+            if (!checkCode)
+                return OperationResult.Failed(ErrorCodes.InvalidTwoFactorCode,
+                    "Failed to verify the phone number");
+
+            user.IsPhoneNumberConfirmed = true;
+            await applicationUserRepository.UpdateAsync(user);
+            await applicationUserTokenRepository.DeleteAsync(otpSecret);
+            return OperationResult.Success();
+
         }
 
         /// <inheritdoc />
 
-        public Task<OperationResult> GetConfirmPhoneCode(ApplicationUser<TId> user, string code)
+        public async Task<OperationResult> ConfirmEmailCode(ApplicationUser<TId> user, string code)
         {
-            throw new NotImplementedException();
+
+            var otpSecret = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "EmailVerify");
+            if (otpSecret is null || string.IsNullOrEmpty(otpSecret.Value))
+            {
+                return OperationResult.Failed(ErrorCodes.EmailNotVerified,
+                    "Failed to verify the email address");
+            }
+
+            var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
+            var checkCode = authenticator.CheckCode(otpSecret.Value, code, user);
+
+            if (!checkCode)
+                return OperationResult.Failed(ErrorCodes.InvalidTwoFactorCode,
+                    "Failed to verify the email address");
+
+            user.IsEmailConfirmed = true;
+            await applicationUserRepository.UpdateAsync(user);
+            await applicationUserTokenRepository.DeleteAsync(otpSecret);
+            return OperationResult.Success();
+
         }
 
         /// <inheritdoc />
@@ -262,7 +340,7 @@ namespace AuthServer.Services
             await applicationUserRepository.UpdateAsync(user);
 
             var userToken = applicationUserTokenRepository.Entities
-                .FirstOrDefault(x => x.UserId.Equals(user.Id));
+                .FirstOrDefault(x => x.UserId.Equals(user.Id) && x.Name == "TwoFactorCode");
 
             if (userToken is not null)
                 await applicationUserTokenRepository.DeleteAsync(userToken);
