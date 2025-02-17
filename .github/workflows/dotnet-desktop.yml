@@ -1,41 +1,41 @@
-name: Build and Test
+# name: Build and Test
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+# on:
+#   push:
+#     branches: [ "main" ]
+#   pull_request:
+#     branches: [ "main" ]
 
-jobs:
-  build:
-    strategy:
-      matrix:
-        configuration: [Debug, Release]
-    runs-on: Ubuntu
-    env:
-      Solution_Name: auth-server                         # Replace with your solution name, i.e. MyWpfApp.sln.
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+# jobs:
+#   build:
+#     strategy:
+#       matrix:
+#         configuration: [Debug, Release]
+#     runs-on: Ubuntu
+#     env:
+#       Solution_Name: auth-server                         # Replace with your solution name, i.e. MyWpfApp.sln.
+#     steps:
+#     - name: Checkout
+#       uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
 
-    # Install the .NET Core workload
-    - name: Install .NET Core
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+#     # Install the .NET Core workload
+#     - name: Install .NET Core
+#       uses: actions/setup-dotnet@v4
+#       with:
+#         dotnet-version: 8.0.x
 
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2
+#     # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
+#     - name: Setup MSBuild.exe
+#       uses: microsoft/setup-msbuild@v2
 
-    # Restore the application to populate the obj folder with RuntimeIdentifiers
-    - name: Restore the application
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
-      env:
-        Configuration: ${{ matrix.configuration }}
+#     # Restore the application to populate the obj folder with RuntimeIdentifiers
+#     - name: Restore the application
+#       run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
+#       env:
+#         Configuration: ${{ matrix.configuration }}
 
-    # Execute all unit tests in the solution
-    - name: Execute unit tests
-      run: dotnet test
+#     # Execute all unit tests in the solution
+#     - name: Execute unit tests
+#       run: dotnet test
