@@ -1,16 +1,30 @@
 ﻿using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
+using Microsoft.AspNetCore.Builder;
 
 namespace AuthServer;
 
+/// <summary>
+/// 
+/// </summary>
 public static class ServiceExtension
 {
     internal static Configurations Configuration = new();
-    public static void RegisterAuthServer(this IServiceCollection services, Func<Configurations, Configurations> config)
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="config"></param>
+    public static void RegisterAuthServer(this IServiceCollection services, Func<Configurations, Configurations>? config = null)
     {
         services.AddMemoryCache();
-        Configuration = config(Configuration);
+    
+        if(config != null)
+            Configuration =  config(Configuration);
+
+        services.AddSignalR();
+
     }
 
     /// <summary>
@@ -25,4 +39,5 @@ public static class ServiceExtension
 
         return Convert.ToBase64String(hash);
     }
+
 }

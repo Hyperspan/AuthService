@@ -66,7 +66,8 @@ namespace AuthServer.Shared
             RequireConfirmedAccount = true,
             RequireConfirmedEmail = true,
             RequireConfirmedPhoneNumber = true,
-            RequireTwoFactorEnabled = true
+            RequireTwoFactorEnabled = true,
+            RestrictMultiLogin = false
         };
 
         /// <summary>

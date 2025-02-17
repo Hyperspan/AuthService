@@ -51,5 +51,6 @@ namespace AuthServer.Domain
         /// 
         /// </summary>
         public int? AccessFailedCount { get; set; }
+
     }
 }

@@ -9,4 +9,11 @@ public class SigninConfiguration : SignInOptions
     /// Is TFA essential for login
     /// </summary>
     public bool RequireTwoFactorEnabled { get; set; }
+
+    /// <summary>
+    /// Flag to restrict multi login. If true, only one session is allowed per user other will be logged out. (using signalr)
+    /// </summary>
+    public bool RestrictMultiLogin { get; set; }
+
+
 }
