@@ -27,6 +27,7 @@
         #endregion
 
         #region 01 Authentication
+
         /// <summary>
         /// 
         /// </summary>
@@ -34,7 +35,7 @@
         /// <summary>
         /// 
         /// </summary>
-        public const string PasswordNotStrong = "01AU002";
+        public const string CredentialsNotStrong = "01AU002";
         /// <summary>
         /// 
         /// </summary>
@@ -79,6 +80,20 @@
         /// 
         /// </summary>
         public const string UserIsNotActive = "01AU012";
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public const string TwoFactorNotEnabled = "01AU013";
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public const string TwoFactorNotConfigured = "01AU013";
+        /// <summary>
+        /// 
+        /// </summary>
+        public const string InvalidTwoFactorCode = "01AU014";
 
         #endregion
 

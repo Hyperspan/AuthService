@@ -9,10 +9,12 @@
         /// 
         /// </summary>
         public bool Succeeded { get; set; }
+
         /// <summary>
         /// 
         /// </summary>
         public string ErrorCode { get; set; } = string.Empty;
+
         /// <summary>
         /// 
         /// </summary>
@@ -57,5 +59,19 @@
         /// 
         /// </summary>
         public TData? Data { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        public static OperationResult<TData> Success(TData data)
+        {
+            return new OperationResult<TData>
+            {
+                Data = data,
+                Succeeded = true
+            };
+        }
     }
 }

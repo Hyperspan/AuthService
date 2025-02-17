@@ -12,19 +12,14 @@ namespace AuthServer.Services
     /// </summary>
     /// <typeparam name="TId"></typeparam>
     public partial class UserManager<TId>(
-        IRepository<TId, ApplicationUser<TId>, AuthContext<TId>> repository,
-        CacheService cacheService
-        )
+        IRepository<TId, ApplicationUser<TId>, AuthContext<TId>> applicationUserRepository,
+        IRepository<TId, ApplicationUserTokens<TId>, AuthContext<TId>> applicationUserTokenRepository,
+        CacheService cacheService)
         : IUserManager<TId> where TId : IEquatable<TId>
     {
         private const string CacheKeyPrefix = "ApplicationUser_";
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
         public async Task<OperationResult> RegisterUserAsync(ApplicationUser<TId> user)
         {
             // Validate the email address
@@ -38,15 +33,16 @@ namespace AuthServer.Services
 
             if (cacheUser is not null && ServiceExtension.Configuration.User.RequireUniqueEmail)
                 return OperationResult.Failed(ErrorCodes.EmailTaken, "User with specified email already exists");
+
             if (cacheUser is null && ServiceExtension.Configuration.User.RequireUniqueEmail &&
-                repository.Entities.Any(x => x.Email == user.Email))
+                applicationUserRepository.Entities.Any(x => x.Email == user.Email))
             {
                 return OperationResult.Failed(ErrorCodes.EmailTaken, "User with specified email already exists");
             }
 
             // Create a new user
             //var password = GetPasswordHash(user.PasswordHash);
-            if (repository.Entities.Any(x => x.UserName == user.UserName))
+            if (applicationUserRepository.Entities.Any(x => x.UserName == user.UserName))
             {
                 return OperationResult.Failed(ErrorCodes.UsernameTaken, "The requested Username is already in use");
             }
@@ -55,34 +51,28 @@ namespace AuthServer.Services
             user.IsTwoFactorEnabled = ServiceExtension.Configuration.SignIn.RequireTwoFactorEnabled;
 
             // Insert record
-            await repository.AddAsync(user);
+            await applicationUserRepository.AddAsync(user);
+
+            // Should inherit the TFA setting from the configuration and add token
+            if (ServiceExtension.Configuration.SignIn.RequireTwoFactorEnabled)
+            {
+                await EnableTwoFactorAuthentication(user);
+            }
 
             return OperationResult.Success();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <param name="password"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
         public Task<OperationResult> RegisterUserAsync(ApplicationUser<TId> user, string password)
         {
             user.PasswordHash = password.GetHash();
             return RegisterUserAsync(user);
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="username"></param>
-        /// <param name="password"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
         public Task<LoginResult> LoginAsync(string username, string password)
         {
-            var user = repository.Entities.FirstOrDefault(x => x.UserName == username);
+            var user = applicationUserRepository.Entities.FirstOrDefault(x => x.UserName == username);
             if (user is null)
             {
                 return Task.FromResult(new LoginResult
@@ -152,76 +142,146 @@ namespace AuthServer.Services
             return Task.FromResult(LoginResult.Success());
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="username"></param>
-        /// <param name="password"></param>
-        /// <param name="otp"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        public Task<LoginResult> LoginTwoFactorAsync(string username, string password, string otp)
+        /// <inheritdoc />
+        public async Task<LoginResult> LoginTwoFactorAsync(string username, string password, string otp)
         {
-            throw new NotImplementedException();
+            var loginResult = await LoginAsync(username, password);
+
+            if (!loginResult.IsTwoFactorRequired)
+            {
+                return loginResult;
+            }
+
+            var user = applicationUserRepository.Entities.FirstOrDefault(x => x.UserName == username);
+
+            if (user is null)
+            {
+                return new LoginResult
+                {
+                    Succeeded = false,
+                    ErrorCode = ErrorCodes.UserNotFound,
+                    ErrorDescription = "User with specified username was not found"
+                };
+            }
+
+            // check TFA code
+            if (!user.IsTwoFactorEnabled)
+            {
+                return new LoginResult
+                {
+                    Succeeded = false,
+                    ErrorCode = ErrorCodes.TwoFactorNotEnabled,
+                    ErrorDescription = "Two factor authentication is not enabled for this user"
+                };
+            }
+
+            var userToken = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id));
+
+            if (userToken is null || string.IsNullOrEmpty(userToken.Value))
+            {
+                return new LoginResult
+                {
+                    Succeeded = false,
+                    ErrorCode = ErrorCodes.TwoFactorNotConfigured,
+                    ErrorDescription = "Two factor authentication is not configured for this user"
+                };
+            }
+
+            var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
+
+            if (!authenticator.CheckCode(userToken.Value, otp, user))
+            {
+                return new LoginResult
+                {
+                    Succeeded = false,
+                    ErrorCode = ErrorCodes.InvalidTwoFactorCode,
+                    ErrorDescription = "Two factor authentication code is invalid"
+                };
+            }
+
+            return LoginResult.Success();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
         public Task<OperationResult<string>> GetTwoFactorCodeAsync(ApplicationUser<TId> user)
         {
-            throw new NotImplementedException();
+            var authenticator = new TwoStepsAuthenticator.TimeAuthenticator();
+            var userToken = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id));
+
+            if (userToken is null || string.IsNullOrEmpty(userToken.Value))
+            {
+                return Task.FromResult(new OperationResult<string>
+                {
+                    Succeeded = false,
+                    ErrorCode = ErrorCodes.TwoFactorNotConfigured,
+                    ErrorDescription = "Two factor authentication is not configured for this user"
+                });
+            }
+
+            return Task.FromResult(new OperationResult<string>
+            {
+                Data = authenticator.GetCode(userToken.Value),
+                Succeeded = true
+            });
         }
 
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
+
         public Task<OperationResult> GetConfirmEmailCode(ApplicationUser<TId> user)
         {
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
         public Task<OperationResult> GetConfirmPhoneCode(ApplicationUser<TId> user)
         {
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <param name="code"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
+
         public Task<OperationResult> ConfirmPhoneCode(ApplicationUser<TId> user, string code)
         {
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="user"></param>
-        /// <param name="code"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
+        /// <inheritdoc />
+
         public Task<OperationResult> GetConfirmPhoneCode(ApplicationUser<TId> user, string code)
         {
             throw new NotImplementedException();
         }
+
+        /// <inheritdoc />
+        public async Task<OperationResult<string>> EnableTwoFactorAuthentication(ApplicationUser<TId> user)
+        {
+            user.IsTwoFactorEnabled = true;
+            await applicationUserRepository.UpdateAsync(user);
+
+            var userToken = applicationUserTokenRepository.Entities
+                .FirstOrDefault(x => x.UserId.Equals(user.Id));
+
+            if (userToken is not null)
+                await applicationUserTokenRepository.DeleteAsync(userToken);
+
+
+            userToken = new ApplicationUserTokens<TId>
+            {
+                LoginProvider = "[AuthService]",
+                Name = "TwoFactorCode",
+                UserId = user.Id,
+                Value = TwoStepsAuthenticator.Authenticator.GenerateKey()
+            };
+
+            await applicationUserTokenRepository.AddAsync(userToken);
+
+
+            return OperationResult<string>.Success(userToken.Value);
+        }
+
     }
 
     public partial class UserManager<TId> where TId : IEquatable<TId>

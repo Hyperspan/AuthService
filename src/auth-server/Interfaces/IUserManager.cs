@@ -13,5 +13,7 @@ namespace AuthServer.Interfaces
         Task<OperationResult> GetConfirmPhoneCode(ApplicationUser<TId> user);
         Task<OperationResult> ConfirmPhoneCode(ApplicationUser<TId> user, string code);
         Task<OperationResult> GetConfirmPhoneCode(ApplicationUser<TId> user, string code);
+        Task<OperationResult<string>> EnableTwoFactorAuthentication(ApplicationUser<TId> user);
+        Task<OperationResult<string>> GetTwoFactorCodeAsync(ApplicationUser<TId> user);
     }
 }
