@@ -1,5 +1,6 @@
 ﻿using AuthServer.Domain;
 using AuthServer.Shared.Results;
+using System.Security.Claims;
 
 namespace AuthServer.Interfaces
 {
@@ -15,5 +16,7 @@ namespace AuthServer.Interfaces
         Task<OperationResult> ConfirmEmailCode(ApplicationUser<TId> user, string code);
         Task<OperationResult<string>> EnableTwoFactorAuthentication(ApplicationUser<TId> user);
         Task<OperationResult<string>> GetTwoFactorCodeAsync(ApplicationUser<TId> user);
+        List<Claim> GetUserClaims(ApplicationUser<TId> user);
+
     }
 }

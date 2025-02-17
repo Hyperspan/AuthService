@@ -1,4 +1,6 @@
-﻿namespace AuthServer.Shared.Results
+﻿using System.Security.Claims;
+
+namespace AuthServer.Shared.Results
 {
     /// <summary>
     /// 
@@ -38,12 +40,18 @@
         /// <summary>
         /// 
         /// </summary>
+        public List<Claim>? Claims { get; set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
         /// <returns></returns>
-        public new static LoginResult Success()
+        public new static LoginResult Success(List<Claim> claims)
         {
             return new LoginResult
             {
-                Succeeded = true
+                Succeeded = true,
+                Claims = claims
             };
         }
 

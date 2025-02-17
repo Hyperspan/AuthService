@@ -4,6 +4,8 @@ using AuthServer.Shared.Results;
 using System.Net;
 using DnsClient;
 using System.Net.Mail;
+using System.Security.Claims;
+
 namespace AuthServer.Services
 {
     /// <summary>
@@ -138,7 +140,7 @@ namespace AuthServer.Services
                 });
             }
 
-            return Task.FromResult(LoginResult.Success());
+            return Task.FromResult(LoginResult.Success(GetUserClaims(user)));
         }
 
         /// <inheritdoc />
@@ -199,7 +201,7 @@ namespace AuthServer.Services
                 };
             }
 
-            return LoginResult.Success();
+            return LoginResult.Success(GetUserClaims(user));
         }
 
         /// <inheritdoc />
@@ -226,9 +228,7 @@ namespace AuthServer.Services
             });
         }
 
-
         /// <inheritdoc />
-
         public async Task<OperationResult<string>> GetConfirmEmailCode(ApplicationUser<TId> user)
         {
             var otpSecret = TwoStepsAuthenticator.Authenticator.GenerateKey();
@@ -280,7 +280,6 @@ namespace AuthServer.Services
         }
 
         /// <inheritdoc />
-
         public async Task<OperationResult> ConfirmPhoneCode(ApplicationUser<TId> user, string code)
         {
             var otpSecret = applicationUserTokenRepository.Entities
@@ -307,7 +306,6 @@ namespace AuthServer.Services
         }
 
         /// <inheritdoc />
-
         public async Task<OperationResult> ConfirmEmailCode(ApplicationUser<TId> user, string code)
         {
 
@@ -360,6 +358,16 @@ namespace AuthServer.Services
             return OperationResult<string>.Success(userToken.Value);
         }
 
+        /// <inheritdoc />
+        public List<Claim> GetUserClaims(ApplicationUser<TId> user)
+        {
+            return
+            [
+                new Claim(ClaimTypes.Name, user.UserName),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString() ?? "")
+            ];
+        }
     }
 
     public partial class UserManager<TId> where TId : IEquatable<TId>
