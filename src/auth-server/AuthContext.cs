@@ -9,7 +9,7 @@ namespace AuthServer
     public class AuthContext<TId> : DbContext where TId : IEquatable<TId>
     {
         /// <summary>
-        /// 
+        /// Auth context for entity framework
         /// </summary>
         /// <param name="options"></param>
         public AuthContext(DbContextOptions<AuthContext<TId>> options) : base(options)
