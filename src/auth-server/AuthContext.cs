@@ -18,7 +18,7 @@ namespace AuthServer
         }
 
         /// <summary>
-        /// 
+        /// Auth context for entity framework
         /// </summary>
         public AuthContext()
         {
